@@ -112,6 +112,8 @@ int main(void)
 	/* Make the window's context current */
 	glfwMakeContextCurrent(window);
 
+	glfwSwapInterval(1);
+
 	if (glewInit() != GLEW_OK)
 		cout << "Error in Initializing GLEW" << endl;
 
@@ -119,13 +121,18 @@ int main(void)
 	cout << "Supported OpenGL Version: " << glGetString(GL_VERSION) << endl;
 #endif
 
+	// Position Vertex Buffer
 	float positions[] = {
-		-0.5f, -0.5f,
-		 0.5f, -0.5f,
-		 0.5f,  0.5f,
-		 0.5f, 0.5f,
-		 -0.5f, 0.5f,
-		 -0.5f,  -0.5f
+		-0.5f, -0.5f,	// Index 0
+		 0.5f, -0.5f,	// Index 1
+		 0.5f,  0.5f,	// Index 2
+		 -0.5f, 0.5f	// Index 3
+	};
+
+	// Index buffer
+	unsigned int indices[] = {
+		0, 1, 2,
+		2, 3, 0
 	};
 
 	// Generate a buffer
@@ -136,6 +143,12 @@ int main(void)
 
 	glEnableVertexAttribArray(0);
 	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 2, 0);
+
+	unsigned int ibo;	// index buffer object
+	glGenBuffers(1, &ibo);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, 6 * sizeof(unsigned int), indices, GL_STATIC_DRAW);
+
 
 	// Shader
 	ShaderProgramSource source = ParseShader("res/shaders/basic.shader");
@@ -148,12 +161,27 @@ int main(void)
 	unsigned int program = CreateShader(source.VertexSource, source.FragmentSource);
 	glUseProgram(program);
 
+	// Set the uniform
+	int location = glGetUniformLocation(program, "u_Color");
+	if (location == -1)
+		cout << "Error: Uniform Location is not found" << endl;
+
+	float r = 0.0f;
+	float increment = 0.05f;
+
 	/* Loop until the user closes the window */
 	while (!glfwWindowShouldClose(window)) {
 		/* Render here */
 		glClear(GL_COLOR_BUFFER_BIT);
 
-		glDrawArrays(GL_TRIANGLES, 0, 6);
+		glUniform4f(location, r, 1.0, 0.0, 1.0);
+
+		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
+
+		if (r > 1.0f) increment = -0.05f;
+		else if (r < 0.0f) increment = 0.05f;
+
+		r += increment;
 
 		/* Swap front and back buffers */
 		glfwSwapBuffers(window);
