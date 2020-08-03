@@ -102,6 +102,10 @@ int main(void)
 	if (!glfwInit())
 		return -1;
 
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+
 	/* Create a windowed mode window and its OpenGL context */
 	window = glfwCreateWindow(640, 480, "Hello World", NULL, NULL);
 	if (!window) {
@@ -118,7 +122,8 @@ int main(void)
 		cout << "Error in Initializing GLEW" << endl;
 
 #if LOGGER
-	cout << "Supported OpenGL Version: " << glGetString(GL_VERSION) << endl;
+	cout << "OpenGL Version: " << glGetString(GL_VERSION) << endl;
+	cout << "Shading Language Version: " << glGetString(GL_SHADING_LANGUAGE_VERSION) << endl;
 #endif
 
 	// Position Vertex Buffer
@@ -135,6 +140,11 @@ int main(void)
 		2, 3, 0
 	};
 
+	// Generate a Vexter Array Object (VAO)
+	unsigned int vao;
+	glGenVertexArrays(1, &vao);
+	glBindVertexArray(vao);
+
 	// Generate a buffer
 	unsigned int buffer;
 	glGenBuffers(1, &buffer);
@@ -149,7 +159,6 @@ int main(void)
 	glGenBuffers(1, &ibo);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, 6 * sizeof(unsigned int), indices, GL_STATIC_DRAW);
-
 
 	// Shader
 	ShaderProgramSource source = ParseShader("res/shaders/basic.shader");
@@ -167,6 +176,12 @@ int main(void)
 	if (location == -1)
 		cout << "Error: Uniform Location is not found" << endl;
 
+	// Unbound
+	glBindVertexArray(0);
+	glUseProgram(0);
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+
 	float r = 0.0f;
 	float increment = 0.05f;
 
@@ -175,7 +190,11 @@ int main(void)
 		/* Render here */
 		glClear(GL_COLOR_BUFFER_BIT);
 
+		glUseProgram(program);
 		glUniform4f(location, r, 1.0, 0.0, 1.0);
+
+		glBindVertexArray(vao);
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
 
 		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
 
