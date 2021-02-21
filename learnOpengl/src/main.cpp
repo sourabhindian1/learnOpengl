@@ -13,6 +13,30 @@
 
 #define LOGGER 1
 
+#ifdef _DEBUG
+#define ASSERT(x) if(!(x)) __debugbreak();  // Break in debug mode
+#else
+#define ASSERT(x) x;                        // Do not break in release mode
+#endif
+
+#define GLCall(x) GLClearError();\
+                  x;\
+                  ASSERT(GLLogCall(#x, __FILE__, __LINE__))
+
+static void GLClearError()
+{
+    while (glGetError() != GL_NO_ERROR);
+}
+
+static bool GLLogCall(const char* function, const char* file, int line)
+{
+    while (GLenum error = glGetError()) {
+        std::cout << "[Opengl Error] (" << error << ") " << function << " " << file << ": "<< line << "\n";
+        return false;
+    }
+    return true;
+}
+
 struct ShaderProgramSource
 {
     std::string VertexSource;
@@ -195,7 +219,8 @@ int main(void)
         glBindVertexArray(vao);
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
 
-        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
+        // To the check for the error, GLCall macro is used
+        GLCall(glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr));
 
         if (r > 1.0f) increment = -0.05f;
         else if (r < 0.0f) increment = 0.05f;
