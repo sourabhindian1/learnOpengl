@@ -7,24 +7,22 @@
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 
-#include<iostream>
-#include<fstream>
-#include<string>
-#include<sstream>
-
-using namespace std;
+#include <iostream>
+#include <fstream>
+#include <string>
+#include <sstream>
 
 #define LOGGER 1
 
 struct ShaderProgramSource
 {
-    string VertexSource;
-    string FragmentSource;
+    std::string VertexSource;
+    std::string FragmentSource;
 };
 
-static ShaderProgramSource ParseShader(const string& filepath)
+static ShaderProgramSource ParseShader(const std::string & filepath)
 {
-    ifstream stream(filepath);
+    std::ifstream stream(filepath);
 
     enum class ShaderType
     {
@@ -33,15 +31,15 @@ static ShaderProgramSource ParseShader(const string& filepath)
         FRAGMENT = 1
     };
 
-    string line;
-    stringstream ss[2];
+    std::string line;
+    std::stringstream ss[2];
     enum ShaderType type = ShaderType::NONE;
 
     while (getline(stream, line)) {
-        if (line.find("#shader") != string::npos) {
-            if (line.find("vertex") != string::npos)
+        if (line.find("#shader") != std::string::npos) {
+            if (line.find("vertex") != std::string::npos)
                 type = ShaderType::VERTEX;
-            else if (line.find("fragment") != string::npos)
+            else if (line.find("fragment") != std::string::npos)
                 type = ShaderType::FRAGMENT;
         }
         else {
@@ -51,7 +49,7 @@ static ShaderProgramSource ParseShader(const string& filepath)
     return { ss[0].str(), ss[1].str() };
 }
 
-static unsigned int CompileShader(unsigned int type, const string& source)
+static unsigned int CompileShader(unsigned int type, const std::string& source)
 {
     unsigned int id = glCreateShader(type);
     const char* src = source.c_str();
@@ -66,8 +64,8 @@ static unsigned int CompileShader(unsigned int type, const string& source)
         glGetShaderiv(id, GL_INFO_LOG_LENGTH, &length);
         char *message = (char *)alloca(length * sizeof(char));
         glGetShaderInfoLog(id, length, &length, message);
-        cout << "Failed shader compilation" << endl;
-        cout << message << endl;
+        std::cout << "Failed shader compilation" << std::endl;
+        std::cout << message << std::endl;
         glDeleteShader(id);
         return 0;
     }
@@ -75,7 +73,7 @@ static unsigned int CompileShader(unsigned int type, const string& source)
     return id;
 }
 
-static unsigned int CreateShader(const string& vertexShader, const string& fragmentShader)
+static unsigned int CreateShader(const std::string& vertexShader, const std::string& fragmentShader)
 {
     unsigned int program = glCreateProgram();
     unsigned int vs = CompileShader(GL_VERTEX_SHADER, vertexShader);
@@ -120,11 +118,11 @@ int main(void)
     glfwSwapInterval(1);
 
     if (glewInit() != GLEW_OK)
-        cout << "Error in Initializing GLEW" << endl;
+        std::cout << "Error in Initializing GLEW" << std::endl;
 
 #if LOGGER
-    cout << "OpenGL Version: " << glGetString(GL_VERSION) << endl;
-    cout << "Shading Language Version: " << glGetString(GL_SHADING_LANGUAGE_VERSION) << endl;
+    std::cout << "OpenGL Version: " << glGetString(GL_VERSION) << std::endl;
+    std::cout << "Shading Language Version: " << glGetString(GL_SHADING_LANGUAGE_VERSION) << std::endl;
 #endif
 
     // Position Vertex Buffer
@@ -164,10 +162,10 @@ int main(void)
     // Shader
     ShaderProgramSource source = ParseShader("res/shaders/basic.shader");
 #if LOGGER
-    cout << "VERTEX SHADER" << endl;
-    cout << source.VertexSource << endl; 
-    cout << "FRAGMENT SHADER" << endl;
-    cout << source.FragmentSource << endl;
+    std::cout << "VERTEX SHADER" << std::endl;
+    std::cout << source.VertexSource << std::endl;
+    std::cout << "FRAGMENT SHADER" << std::endl;
+    std::cout << source.FragmentSource << std::endl;
 #endif
     unsigned int program = CreateShader(source.VertexSource, source.FragmentSource);
     glUseProgram(program);
@@ -175,7 +173,7 @@ int main(void)
     // Set the uniform
     int location = glGetUniformLocation(program, "u_Color");
     if (location == -1)
-        cout << "Error: Uniform Location is not found" << endl;
+        std::cout << "Error: Uniform Location is not found" << std::endl;
 
     // Unbound
     glBindVertexArray(0);
