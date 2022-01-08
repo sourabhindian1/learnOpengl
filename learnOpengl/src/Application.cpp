@@ -14,6 +14,36 @@
 
 #define LOGGER 1
 
+#ifdef _WIN32
+#define ASSERT(x) if(!(x)) __debugbreak()
+#else
+#define ASSERT(x) x
+#endif
+
+#define GLCall(func) \
+    do { \
+        GlClearError(); \
+        func; \
+        ASSERT(GlLogCall(#func, __FILE__, __LINE__)); \
+    } while(0)
+
+static void GlClearError()
+{
+    while (glGetError() != GL_NO_ERROR);
+}
+
+static bool GlLogCall(const char* function, const char* file, int line)
+{
+    while (GLenum error = glGetError()) {
+        std::cout << "Opengl Error: " << error <<
+            " Function: " << function <<
+            " File: "<< file <<
+            " Line:" << line << std::endl;
+        return false;
+    }
+    return true;
+}
+
 struct ShaderProgramSource
 {
     std::string VertexSource;
@@ -64,7 +94,8 @@ static unsigned int CompileShader(unsigned int type, const std::string& source)
         glGetShaderiv(id, GL_INFO_LOG_LENGTH, &length);
         char *message = (char *)alloca(length * sizeof(char));
         glGetShaderInfoLog(id, length, &length, message);
-        std::cout << "Failed shader compilation" << std::endl;
+        std::cout << "Failed to compile " <<
+            (type == GL_VERTEX_SHADER ? "vertex" : "fragment") << " shader" << std::endl;
         std::cout << message << std::endl;
         glDeleteShader(id);
         return 0;
@@ -127,10 +158,10 @@ int main(void)
 
     // Position Vertex Buffer
     float positions[] = {
-        -0.5f, -0.5f,	// Index 0
-         0.5f, -0.5f,	// Index 1
-         0.5f,  0.5f,	// Index 2
-         -0.5f, 0.5f	// Index 3
+        -0.5f, -0.5f,   // Index 0
+         0.5f, -0.5f,   // Index 1
+         0.5f,  0.5f,   // Index 2
+        -0.5f,  0.5f    // Index 4
     };
 
     // Index buffer
@@ -154,7 +185,7 @@ int main(void)
     // Specify the layout of the vertex buffer
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 2, 0);
 
-    unsigned int ibo;	// index buffer object
+    unsigned int ibo;   // index buffer object
     glGenBuffers(1, &ibo);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, 6 * sizeof(unsigned int), indices, GL_STATIC_DRAW);
@@ -195,7 +226,7 @@ int main(void)
         glBindVertexArray(vao);
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
 
-        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
+        GLCall(glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr));
 
         if (r > 1.0f) increment = -0.05f;
         else if (r < 0.0f) increment = 0.05f;
