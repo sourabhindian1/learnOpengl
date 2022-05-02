@@ -14,88 +14,8 @@
 #include "Renderer.h"
 #include "VertexBuffer.h"
 #include "IndexBuffer.h"
-
-#define LOGGER 1
-
-struct ShaderProgramSource
-{
-    std::string VertexSource;
-    std::string FragmentSource;
-};
-
-static ShaderProgramSource ParseShader(const std::string& filepath)
-{
-    std::ifstream stream(filepath);
-
-    enum class ShaderType
-    {
-        NONE = -1,
-        VERTEX = 0,
-        FRAGMENT = 1
-    };
-
-    std::string line;
-    std::stringstream ss[2];
-    enum ShaderType type = ShaderType::NONE;
-
-    while (getline(stream, line)) {
-        if (line.find("#shader") != std::string::npos) {
-            if (line.find("vertex") != std::string::npos)
-                type = ShaderType::VERTEX;
-            else if (line.find("fragment") != std::string::npos)
-                type = ShaderType::FRAGMENT;
-        }
-        else {
-            ss[(int)type] << line << "\n";
-        }
-    }
-    return { ss[0].str(), ss[1].str() };
-}
-
-static unsigned int CompileShader(unsigned int type, const std::string& source)
-{
-    unsigned int id = glCreateShader(type);
-    const char* src = source.c_str();
-    glShaderSource(id, 1, &src, nullptr);
-    glCompileShader(id);
-
-    // Check for compilation error
-    int result;
-    glGetShaderiv(id, GL_COMPILE_STATUS, &result);
-    if (result == GL_FALSE) {
-        int length;
-        glGetShaderiv(id, GL_INFO_LOG_LENGTH, &length);
-        char* message = (char*)alloca(length * sizeof(char));
-        glGetShaderInfoLog(id, length, &length, message);
-        std::cout << "Failed to compile " <<
-            (type == GL_VERTEX_SHADER ? "vertex" : "fragment") << " shader" << std::endl;
-        std::cout << message << std::endl;
-        glDeleteShader(id);
-        return 0;
-    }
-
-    return id;
-}
-
-static unsigned int CreateShader(const std::string& vertexShader, const std::string& fragmentShader)
-{
-    unsigned int program = glCreateProgram();
-    unsigned int vs = CompileShader(GL_VERTEX_SHADER, vertexShader);
-    unsigned int fs = CompileShader(GL_FRAGMENT_SHADER, fragmentShader);
-
-    glAttachShader(program, vs);
-    glAttachShader(program, fs);
-
-    glBindAttribLocation(program, 0, "position");
-
-    glLinkProgram(program);
-    glValidateProgram(program);
-
-    glDeleteShader(vs);
-    glDeleteShader(fs);
-
-    return program;
-}
+#include "VertexArray.h"
+#include "Shader.h"
 
 int main(void)
 {
@@ -124,10 +44,9 @@ int main(void)
     if (glewInit() != GLEW_OK)
         std::cout << "Error in Initializing GLEW" << std::endl;
 
-#if LOGGER
     std::cout << "OpenGL Version: " << glGetString(GL_VERSION) << std::endl;
     std::cout << "Shading Language Version: " << glGetString(GL_SHADING_LANGUAGE_VERSION) << std::endl;
-#endif
+
     {
         // Position Vertex Buffer
         float positions[] = {
@@ -143,40 +62,24 @@ int main(void)
             2, 3, 0
         };
 
-        // Generate a Vexter Array Object (VAO)
-        unsigned int vao;
-        glGenVertexArrays(1, &vao);
-        glBindVertexArray(vao);
-
+        // Vexter Array
+        VertexArray va;
         // Vertex buffer
         VertexBuffer vb(positions, 4 * 2 * sizeof(float));
 
-        glEnableVertexAttribArray(0);
-        // Specify the layout of the vertex buffer
-        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 2, 0);
+        VertexBufferLayout layout;
+        layout.Push<float>(2);
+        va.AddBuffer(vb, layout);
 
         // Index buffer
         IndexBuffer ib(indices, 6);
 
         // Shader
-        ShaderProgramSource source = ParseShader("res/shaders/basic.shader");
-#if LOGGER
-        std::cout << std::format("\nVERTEX SHADER\n");
-        std::cout << std::format("{}\n", source.VertexSource);
-        std::cout << std::format("\nFRAGMENT SHADER\n");
-        std::cout << std::format("{}\n", source.FragmentSource);
-#endif
-        unsigned int program = CreateShader(source.VertexSource, source.FragmentSource);
-        glUseProgram(program);
-
-        // Set the uniform
-        int location = glGetUniformLocation(program, "u_Color");
-        if (location == -1)
-            std::cout << "Error: Uniform Location is not found" << std::endl;
+        Shader shader("res/shaders/basic.shader");
 
         // Unbound
-        glBindVertexArray(0);
-        glUseProgram(0);
+        va.Unbind();
+        shader.Unbind();
         vb.Unbind();
         ib.Unbind();
 
@@ -188,10 +91,10 @@ int main(void)
             /* Render here */
             glClear(GL_COLOR_BUFFER_BIT);
 
-            glUseProgram(program);
-            glUniform4f(location, r, 1.0, 0.0, 1.0);
+            shader.Bind();
+            shader.SetUniform4f("u_Color", r, 1.0, 0.0, 1.0);
 
-            glBindVertexArray(vao);
+            va.Bind();
             ib.Bind();
 
             GLCall(glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr));
@@ -207,8 +110,6 @@ int main(void)
             /* Poll for and process events */
             glfwPollEvents();
         }
-
-        glDeleteProgram(program);
     }
     glfwTerminate();
     return 0;
