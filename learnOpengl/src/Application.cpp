@@ -1,7 +1,5 @@
 /*
- * Author: Sourabh Goel
  * Contact: sourabhindian1@gmail.com
- * Date: 22 July 2020
 */
 
 #include <GL/glew.h>
@@ -11,38 +9,13 @@
 #include <fstream>
 #include <string>
 #include <sstream>
+#include <format>
+
+#include "Renderer.h"
+#include "VertexBuffer.h"
+#include "IndexBuffer.h"
 
 #define LOGGER 1
-
-#ifdef _WIN32
-#define ASSERT(x) if(!(x)) __debugbreak()
-#else
-#define ASSERT(x) x
-#endif
-
-#define GLCall(func) \
-    do { \
-        GlClearError(); \
-        func; \
-        ASSERT(GlLogCall(#func, __FILE__, __LINE__)); \
-    } while(0)
-
-static void GlClearError()
-{
-    while (glGetError() != GL_NO_ERROR);
-}
-
-static bool GlLogCall(const char* function, const char* file, int line)
-{
-    while (GLenum error = glGetError()) {
-        std::cout << "Opengl Error: " << error <<
-            " Function: " << function <<
-            " File: "<< file <<
-            " Line:" << line << std::endl;
-        return false;
-    }
-    return true;
-}
 
 struct ShaderProgramSource
 {
@@ -50,7 +23,7 @@ struct ShaderProgramSource
     std::string FragmentSource;
 };
 
-static ShaderProgramSource ParseShader(const std::string & filepath)
+static ShaderProgramSource ParseShader(const std::string& filepath)
 {
     std::ifstream stream(filepath);
 
@@ -89,10 +62,10 @@ static unsigned int CompileShader(unsigned int type, const std::string& source)
     // Check for compilation error
     int result;
     glGetShaderiv(id, GL_COMPILE_STATUS, &result);
-    if(result == GL_FALSE) {
+    if (result == GL_FALSE) {
         int length;
         glGetShaderiv(id, GL_INFO_LOG_LENGTH, &length);
-        char *message = (char *)alloca(length * sizeof(char));
+        char* message = (char*)alloca(length * sizeof(char));
         glGetShaderInfoLog(id, length, &length, message);
         std::cout << "Failed to compile " <<
             (type == GL_VERTEX_SHADER ? "vertex" : "fragment") << " shader" << std::endl;
@@ -155,93 +128,88 @@ int main(void)
     std::cout << "OpenGL Version: " << glGetString(GL_VERSION) << std::endl;
     std::cout << "Shading Language Version: " << glGetString(GL_SHADING_LANGUAGE_VERSION) << std::endl;
 #endif
+    {
+        // Position Vertex Buffer
+        float positions[] = {
+            -0.5f, -0.5f,   // Index 0
+             0.5f, -0.5f,   // Index 1
+             0.5f,  0.5f,   // Index 2
+            -0.5f,  0.5f    // Index 3
+        };
 
-    // Position Vertex Buffer
-    float positions[] = {
-        -0.5f, -0.5f,   // Index 0
-         0.5f, -0.5f,   // Index 1
-         0.5f,  0.5f,   // Index 2
-        -0.5f,  0.5f    // Index 4
-    };
+        // Index buffer
+        unsigned int indices[] = {
+            0, 1, 2,
+            2, 3, 0
+        };
 
-    // Index buffer
-    unsigned int indices[] = {
-        0, 1, 2,
-        2, 3, 0
-    };
-
-    // Generate a Vexter Array Object (VAO)
-    unsigned int vao;
-    glGenVertexArrays(1, &vao);
-    glBindVertexArray(vao);
-
-    // Generate a buffer
-    unsigned int buffer;
-    glGenBuffers(1, &buffer);
-    glBindBuffer(GL_ARRAY_BUFFER, buffer);
-    glBufferData(GL_ARRAY_BUFFER, 4 * 2 * sizeof(float), positions, GL_STATIC_DRAW);
-
-    glEnableVertexAttribArray(0);
-    // Specify the layout of the vertex buffer
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 2, 0);
-
-    unsigned int ibo;   // index buffer object
-    glGenBuffers(1, &ibo);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, 6 * sizeof(unsigned int), indices, GL_STATIC_DRAW);
-
-    // Shader
-    ShaderProgramSource source = ParseShader("res/shaders/basic.shader");
-#if LOGGER
-    std::cout << "VERTEX SHADER" << std::endl;
-    std::cout << source.VertexSource << std::endl;
-    std::cout << "FRAGMENT SHADER" << std::endl;
-    std::cout << source.FragmentSource << std::endl;
-#endif
-    unsigned int program = CreateShader(source.VertexSource, source.FragmentSource);
-    glUseProgram(program);
-
-    // Set the uniform
-    int location = glGetUniformLocation(program, "u_Color");
-    if (location == -1)
-        std::cout << "Error: Uniform Location is not found" << std::endl;
-
-    // Unbound
-    glBindVertexArray(0);
-    glUseProgram(0);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-
-    float r = 0.0f;
-    float increment = 0.05f;
-
-    /* Loop until the user closes the window */
-    while (!glfwWindowShouldClose(window)) {
-        /* Render here */
-        glClear(GL_COLOR_BUFFER_BIT);
-
-        glUseProgram(program);
-        glUniform4f(location, r, 1.0, 0.0, 1.0);
-
+        // Generate a Vexter Array Object (VAO)
+        unsigned int vao;
+        glGenVertexArrays(1, &vao);
         glBindVertexArray(vao);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
 
-        GLCall(glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr));
+        // Vertex buffer
+        VertexBuffer vb(positions, 4 * 2 * sizeof(float));
 
-        if (r > 1.0f) increment = -0.05f;
-        else if (r < 0.0f) increment = 0.05f;
+        glEnableVertexAttribArray(0);
+        // Specify the layout of the vertex buffer
+        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 2, 0);
 
-        r += increment;
+        // Index buffer
+        IndexBuffer ib(indices, 6);
 
-        /* Swap front and back buffers */
-        glfwSwapBuffers(window);
+        // Shader
+        ShaderProgramSource source = ParseShader("res/shaders/basic.shader");
+#if LOGGER
+        std::cout << std::format("\nVERTEX SHADER\n");
+        std::cout << std::format("{}\n", source.VertexSource);
+        std::cout << std::format("\nFRAGMENT SHADER\n");
+        std::cout << std::format("{}\n", source.FragmentSource);
+#endif
+        unsigned int program = CreateShader(source.VertexSource, source.FragmentSource);
+        glUseProgram(program);
 
-        /* Poll for and process events */
-        glfwPollEvents();
+        // Set the uniform
+        int location = glGetUniformLocation(program, "u_Color");
+        if (location == -1)
+            std::cout << "Error: Uniform Location is not found" << std::endl;
+
+        // Unbound
+        glBindVertexArray(0);
+        glUseProgram(0);
+        vb.Unbind();
+        ib.Unbind();
+
+        float r = 0.0f;
+        float increment = 0.05f;
+
+        /* Loop until the user closes the window */
+        while (!glfwWindowShouldClose(window)) {
+            /* Render here */
+            glClear(GL_COLOR_BUFFER_BIT);
+
+            glUseProgram(program);
+            glUniform4f(location, r, 1.0, 0.0, 1.0);
+
+            glBindVertexArray(vao);
+            ib.Bind();
+
+            GLCall(glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr));
+
+            if (r > 1.0f) increment = -0.05f;
+            else if (r < 0.0f) increment = 0.05f;
+
+            r += increment;
+
+            /* Swap front and back buffers */
+            glfwSwapBuffers(window);
+
+            /* Poll for and process events */
+            glfwPollEvents();
+        }
+
+        glDeleteProgram(program);
     }
-
-    glDeleteProgram(program);
-
     glfwTerminate();
     return 0;
 }
