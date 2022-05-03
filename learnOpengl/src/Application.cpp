@@ -17,6 +17,7 @@
 #include "IndexBuffer.h"
 #include "VertexArray.h"
 #include "Shader.h"
+#include "Texture.h"
 
 int main(void)
 {
@@ -51,10 +52,10 @@ int main(void)
     {
         // Position Vertex Buffer
         float positions[] = {
-            -0.5f, -0.5f,   // Index 0
-             0.5f, -0.5f,   // Index 1
-             0.5f,  0.5f,   // Index 2
-            -0.5f,  0.5f    // Index 3
+            -0.5f, -0.5f, 0.0f, 0.0f,   // Index 0
+             0.5f, -0.5f, 1.0f, 0.0f,   // Index 1
+             0.5f,  0.5f, 1.0f, 1.0f,   // Index 2
+            -0.5f,  0.5f, 0.0f, 1.0f    // Index 3
         };
 
         // Index buffer
@@ -63,12 +64,16 @@ int main(void)
             2, 3, 0
         };
 
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
         // Vexter Array
         VertexArray va;
         // Vertex buffer
-        VertexBuffer vb(positions, 4 * 2 * sizeof(float));
+        VertexBuffer vb(positions, 4 * 4 * sizeof(float));
 
         VertexBufferLayout layout;
+        layout.Push<float>(2);
         layout.Push<float>(2);
         va.AddBuffer(vb, layout);
 
@@ -78,14 +83,16 @@ int main(void)
         // Shader
         Shader shader("res/shaders/basic.shader");
 
+        // Texture
+        Texture texture("res/textures/testimage.png");
+        texture.Bind();
+        shader.SetUniform1i("u_Texture", 0);
+
         // Unbound
         va.Unbind();
         shader.Unbind();
         vb.Unbind();
         ib.Unbind();
-
-        float r = 0.0f;
-        float increment = 0.05f;
 
         Renderer renderer;
         /* Loop until the user closes the window */
@@ -94,14 +101,9 @@ int main(void)
             renderer.Clear();
 
             shader.Bind();
-            shader.SetUniform4f("u_Color", r, 1.0, 0.0, 1.0);
+            shader.SetUniform4f("u_Color", 1.0, 1.0, 0.0, 1.0);
 
             renderer.Draw(va, ib, shader);
-
-            if (r > 1.0f) increment = -0.05f;
-            else if (r < 0.0f) increment = 0.05f;
-
-            r += increment;
 
             /* Swap front and back buffers */
             glfwSwapBuffers(window);
